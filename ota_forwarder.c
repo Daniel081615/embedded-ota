@@ -159,6 +159,42 @@ const IOtaFwdProfile_t OTA_FWD_PROXY_PROFILE = {
 };
 
 /* ════════════════════════════════════════════════════════════════
+ *  RELAY_PROFILE（CENTER→METER App 中繼人）profile hooks
+ *
+ *  與 PROXY 的差異全在此三 hook + use_enter_handshake=0：
+ *    - 無 BL 握手：TRIGGERED 直接送 UPDATE（FSM 的 handshake-skip 分支）
+ *    - UPDATE 為 21-byte（含 node_id=0 前綴；20/21 配對只在此函式）
+ *    - 末包後不等 APP_READY，改進 OTA_FWD_TRIGGERING 送 TRIGGER 後即切下一台
+ *    - 失敗直接切下一台（不計 fail、不 settle）
+ *  本區塊純附加，未更動 PROXY 路徑（已實機驗證）。
+ * ════════════════════════════════════════════════════════════════ */
+
+static uint8_t Relay_EncodeUpdate(uint8_t *pld, const OtaFwdCtx_t *c)
+{
+    pld[0] = 0u;   /* node_id = 0：廣播該 METER 下所有子節點 */
+    OtaProto_EncodeUpdateMeta(&pld[1], c->payload_size, c->fw_image_size,
+                              c->transport_crc32, c->version);
+    return (uint8_t)(1u + OTA_PROTO_UPDATE_META_LEN);   /* 21 */
+}
+
+static void Relay_OnStreamComplete(OtaFwdCtx_t *c)
+{
+    c->state = OTA_FWD_TRIGGERING;   /* 下個 tick 送 TRIGGER_CHILD_REQ */
+}
+
+static void Relay_OnChildFail(OtaFwdCtx_t *c)
+{
+    AdvanceNext(c);
+}
+
+const IOtaFwdProfile_t OTA_FWD_RELAY_PROFILE = {
+    0,                       /* use_enter_handshake = 0（App relay，無 BL 握手）*/
+    Relay_EncodeUpdate,
+    Relay_OnStreamComplete,
+    Relay_OnChildFail
+};
+
+/* ════════════════════════════════════════════════════════════════
  *  公開 API
  * ════════════════════════════════════════════════════════════════ */
 

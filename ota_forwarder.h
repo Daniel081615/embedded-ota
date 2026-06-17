@@ -14,9 +14,10 @@
  *   IOtaFwdTx_t      傳輸層原語（怎麼把 100-byte frame 送出 / flush）—— 每節點一份
  *   IOtaFwdProfile_t 轉發語意（要不要 ENTER 握手、UPDATE 20/21-byte、完成/失敗動作）
  *
- * 目前只有 PROXY_PROFILE（BL 握手代理人）。未來收斂 center_relay（App relay）時，
- * 只需新增 RELAY_PROFILE + 把 center_relay.c 改成 wrapper，**不動本核心**：
- * FSM 已含 relay 所需的 handshake-skip 分支與 OTA_FWD_TRIGGERING 尾段狀態。
+ * 內建兩個 profile：
+ *   OTA_FWD_PROXY_PROFILE — BL 握手代理人（center_proxy / meter_proxy 共用）
+ *   OTA_FWD_RELAY_PROFILE — CENTER→METER App 中繼人（center_relay）
+ * 兩者共用同一 FSM；差異全在 profile 的 handshake/EncodeUpdate(20 vs 21)/完成/失敗 hook。
  *
  * actor 形狀：context 由 caller 持有並傳入，無單例 file-static，未來上 RTOS
  * 每個 forwarder = 一個 task-private context。
@@ -107,8 +108,9 @@ typedef struct OtaFwdCtx {
     uint8_t  chunk_buf[OTA_CHUNK_SIZE + 3u];  /* +3：最後一包 4-byte 對齊讀取 */
 } OtaFwdCtx_t;
 
-/* ── 內建 profile：BL 握手代理人（center_proxy / meter_proxy 共用）── */
-extern const IOtaFwdProfile_t OTA_FWD_PROXY_PROFILE;
+/* ── 內建 profile ── */
+extern const IOtaFwdProfile_t OTA_FWD_PROXY_PROFILE;  /* BL 握手代理人（center_proxy/meter_proxy）*/
+extern const IOtaFwdProfile_t OTA_FWD_RELAY_PROFILE;  /* CENTER→METER App 中繼人（center_relay）  */
 
 /* ── 公開 API ── */
 void OtaForwarder_Init(OtaFwdCtx_t *c, const IOtaSys_t *sys, const IOtaFwdTx_t *tx,
