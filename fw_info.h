@@ -30,7 +30,7 @@ typedef enum {
 /* Bootloader command: 控制下一次 reset 時 Bootloader 行為 */
 typedef enum {
     BTLD_CMD_NONE     = 0xFF, /* 正常開機：依 active_bank / bank_usage 選擇 Bank 跳入 */
-    BTLD_UPDATE_METER = 0xA1, /* App 觸發 OTA：BL 進入 OTA 接收主迴圈 */
+    BTLD_ENTER_OTA    = 0xA1, /* App 觸發：要求 Bootloader 進入 OTA 接收主迴圈（原 BTLD_UPDATE_METER，值不變）*/
     BTLD_PATCH        = 0xA2, /* BL 直接對 INCOMING bank 執行 offset patch，跳過接收 */
     BTLD_FORCE_BANK1  = 0x11, /* 強制跳入 Bank 0（維修用） */
     BTLD_FORCE_BANK2  = 0x12, /* 強制跳入 Bank 1（維修用） */

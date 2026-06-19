@@ -28,6 +28,9 @@
 #ifndef FS_BANK1_META_BASE
 #define FS_BANK1_META_BASE  0x0001D800UL   /* = BSP_BANK1_META_BASE（Bank1 末端 page）*/
 #endif
+#ifndef FS_BOOTLOADER_BASE
+#define FS_BOOTLOADER_BASE  0x00000000UL   /* Bootloader 駐留 APROM 最低位址 */
+#endif
 
 /* 靜態指標：保存注入的硬體驅動 (Injected Hardware Driver) */
 static const IFmcDriver_t *s_fmc = NULL;
@@ -166,6 +169,10 @@ void FlashService_JumpToApp(uint32_t app_base) {
     if (s_fmc && s_fmc->JumpToApp) {
         s_fmc->JumpToApp(app_base); /* 把跳轉工作委託給底層硬體驅動 */
     }
+}
+
+void FlashService_JumpToBootloader(void) {
+    FlashService_JumpToApp(FS_BOOTLOADER_BASE);  /* BL 在 APROM 0x0；含 VECMAP remap；不返回 */
 }
 
 uint8_t FlashService_GetActiveBank(void) {
