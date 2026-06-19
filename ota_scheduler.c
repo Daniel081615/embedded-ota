@@ -42,6 +42,19 @@ static void EnterError(void)
     s_ctx.state = OTA_STATE_ERROR;
 }
 
+/* 回傳目前接收進度的 STATUS_RSP（4-byte rx_offset，LE）。
+ * 傳輸中正常 ACK 與冪等 re-ACK 共用，避免重複組包。 */
+static void SendProgressAck(uint32_t rx_offset)
+{
+    uint8_t ack[4];
+    ack[0] = (uint8_t)(rx_offset);
+    ack[1] = (uint8_t)(rx_offset >>  8);
+    ack[2] = (uint8_t)(rx_offset >> 16);
+    ack[3] = (uint8_t)(rx_offset >> 24);
+    if (s_net && s_net->SendUpstream)
+        s_net->SendUpstream(OTA_CMD_STATUS_RSP, ack, 4u);
+}
+
 /* ── 公開 API ── */
 
 void OtaScheduler_Init(OtaRole_t           role,
@@ -219,7 +232,22 @@ void OtaScheduler_OnReceivePacket(uint8_t cmd,
                     data_len = (uint16_t)remaining;
             }
 
-            if (chunk_offset != s_ctx.current_offset) break;   /* 不允許亂序 */
+            /* 冪等 re-ACK：host 的進度 ACK 可能在 RS485 上遺失，使它重送「裝置已寫過」
+             * 的包。若沿用嚴格 `!=` break，每次重送都被當亂序靜默丟棄 → host 重送 /
+             * 裝置丟棄死鎖 → 整段 OTA 失敗（單一 ACK 掉一次即全毀）。改三路處理：
+             *   chunk_offset <  current_offset：已寫過（ACK 遺失）→ 不重寫，重送目前進度
+             *                                   ACK，讓 host 收到有效 0x21 後 i++ 並自動對齊
+             *   chunk_offset == current_offset：正常 → 往下寫入
+             *   chunk_offset >  current_offset：真亂序（此 host 同步單包串流、永不超前；
+             *                                   且 frame checksum 已保 offset 完整）→ 協定錯誤 */
+            if (chunk_offset < s_ctx.current_offset) {
+                SendProgressAck(s_ctx.current_offset);
+                break;
+            }
+            if (chunk_offset > s_ctx.current_offset) {
+                EnterError();
+                break;
+            }
 
             if (FlashService_WriteFirmware(s_ctx.target_bank,
                                            s_ctx.current_offset,
@@ -235,13 +263,7 @@ void OtaScheduler_OnReceivePacket(uint8_t cmd,
 
             if (s_ctx.current_offset < s_ctx.fw_total_size) {
                 /* 傳輸中：回傳 rx_offset 進度 ACK */
-                uint8_t ack[4];
-                ack[0] = (uint8_t)(s_ctx.current_offset);
-                ack[1] = (uint8_t)(s_ctx.current_offset >>  8);
-                ack[2] = (uint8_t)(s_ctx.current_offset >> 16);
-                ack[3] = (uint8_t)(s_ctx.current_offset >> 24);
-                if (s_net && s_net->SendUpstream)
-                    s_net->SendUpstream(OTA_CMD_STATUS_RSP, ack, 4u);
+                SendProgressAck(s_ctx.current_offset);
             } else {
                 /* 全數接收：Inline transport CRC 驗證 */
                 if (FlashService_VerifyBankCRC(s_ctx.target_bank,
