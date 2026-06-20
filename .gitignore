@@ -1,0 +1,9 @@
+# Host simulation build artifacts
+examples/host_sim/host_sim
+examples/host_sim/host_sim.exe
+*.o
+*.obj
+
+# Editors / OS
+.vscode/
+.DS_Store

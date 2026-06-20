@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  host-sim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build & run host simulation (gcc, -fshort-enums)
+        run: make -C examples/host_sim run
+
+      # The on-flash layout is guarded by _Static_assert in fw_info.h, which
+      # only holds with 1-byte enums. Confirm the build genuinely fails without
+      # -fshort-enums, i.e. the guard is doing its job.
+      - name: Verify the static-assert guard rejects wide enums
+        run: |
+          echo '#include "fw_info.h"' > check_layout.c
+          if gcc -std=c11 -I. -c check_layout.c -o /dev/null 2>/dev/null; then
+            echo "ERROR: fw_info.h compiled without -fshort-enums; layout guard is not effective." >&2
+            exit 1
+          fi
+          echo "OK: layout guard correctly rejects the default enum width."
