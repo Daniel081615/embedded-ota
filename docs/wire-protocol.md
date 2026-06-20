@@ -1,3 +1,5 @@
+**English** | [繁體中文](wire-protocol.zh-TW.md)
+
 # Wire protocol & on-flash layout
 
 Everything here is "must agree across devices". Transport framing (start byte,

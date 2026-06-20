@@ -1,3 +1,5 @@
+**English** | [繁體中文](architecture.zh-TW.md)
+
 # Architecture
 
 `embedded-ota` is the **App-side portable core** of an A/B firmware-update system:

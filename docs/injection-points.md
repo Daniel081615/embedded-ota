@@ -1,3 +1,5 @@
+**English** | [繁體中文](injection-points.zh-TW.md)
+
 # Injection points
 
 Every platform dependency is a vtable you fill in and inject. The core holds the

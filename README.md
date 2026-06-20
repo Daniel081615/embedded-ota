@@ -4,6 +4,8 @@
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![lang](https://img.shields.io/badge/C-C11-informational)
 
+**English** | [繁體中文](README.zh-TW.md)
+
 A portable, OS-agnostic **dual-bank, store-and-trigger OTA core** for bare-metal
 MCU firmware. Pure C11, no dynamic memory, no floating point, no recursion — the
 hardware is abstracted entirely behind injected function-pointer vtables, so the

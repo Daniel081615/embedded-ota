@@ -1,3 +1,5 @@
+**English** | [繁體中文](porting-guide.zh-TW.md)
+
 # Porting guide
 
 Bringing `embedded-ota` to a new MCU / transport / topology. Most of the work is
