@@ -3,6 +3,7 @@
 #include "ota_entry_core.h"
 #include "flash_service.h"
 #include "fw_info.h"
+#include "ota_flash_port.h"   /* OTA_FLASH_BANK_SIZE（顯式；flash_service.h 亦已傳遞）*/
 #include <stddef.h>
 
 void OtaEntry_EnterBootloader(const IOtaEntrySys_t *sys)
@@ -68,4 +69,43 @@ void OtaEntry_ConfirmHealth(const IOtaEntrySys_t *sys)
     }
 
     s_health_confirmed = 1u;
+}
+
+void OtaEntry_ValidateFirmware(const IOtaEntrySys_t *sys)
+{
+    FW_Info_t       info;
+    Bank_MetaInfo_t meta;
+    uint8_t         bank;
+
+    FlashService_EnsureOpen();
+
+    /* 驗證對象 = 實際執行中的 bank，以硬體 VECMAP/VTOR 為準（fresh flash 也準），
+     * 不信任可能未初始化的 FW_Info.active_bank。 */
+    bank = FlashService_GetActiveBank();
+
+    /* 1. FW_Info：全 0xFF（fresh Keil flash）= 無參考可比對 → 信任當前映像放行；
+     *    已初始化則 cmd 必須是 NONE。 */
+    if (FlashService_ReadFWInfo(&info) != 0) goto fail;
+    if (info.active_bank > 1u) return;
+    if (info.cmd != (uint8_t)BTLD_CMD_NONE) goto fail;
+
+    /* 2. Bank Meta：usage valid，fw_size 在範圍內 */
+    if (FlashService_ReadBankMeta(bank, &meta) != 0) goto fail;
+    if (meta.usage != (uint8_t)BANK_USAGE_VALID &&
+        meta.usage != (uint8_t)BANK_USAGE_ACTIVE) goto fail;
+    if (meta.fw_size == 0u || meta.fw_size > OTA_FLASH_BANK_SIZE) goto fail;
+
+    /* 3. CRC32 驗證 */
+    if (!FlashService_VerifyBankCRC(bank, meta.fw_size, meta.fw_crc32)) goto fail;
+
+    /* 4. 首次 OTA 開機：VALID → ACTIVE */
+    if (meta.usage == (uint8_t)BANK_USAGE_VALID)
+    {
+        meta.usage = (uint8_t)BANK_USAGE_ACTIVE;
+        FlashService_UpdateBankMeta(bank, &meta);
+    }
+    return;
+
+fail:
+    OtaEntry_EnterBootloader(sys);   /* 不返回 */
 }

@@ -42,4 +42,14 @@ void OtaEntry_EnterBootloader(const IOtaEntrySys_t *sys);
  */
 void OtaEntry_ConfirmHealth(const IOtaEntrySys_t *sys);
 
+/*
+ * OtaEntry_ValidateFirmware
+ *   開機完整性閘：讀 FW_Info（fresh flash 全 0xFF → 短路放行）→ 讀「執行中 Bank」Meta →
+ *   usage / fw_size 驗證 → CRC32。任一步失敗 → OtaEntry_EnterBootloader(sys)（不返回，
+ *   BL 負責 rollback）。首次 OTA 開機（usage==VALID）通過後自動升級為 ACTIVE。
+ *   執行 bank 以硬體 GetActiveBank()（VECMAP/VTOR）為準，不信任未初始化的 FW_Info.active_bank。
+ *   應在主迴圈啟動前、FlashService_Init() 之後呼叫。
+ */
+void OtaEntry_ValidateFirmware(const IOtaEntrySys_t *sys);
+
 #endif /* OTA_ENTRY_CORE_SHARED_H */
