@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "fw_info.h"          /* FW_Info_t / Bank_MetaInfo_t（共用契約，types-only）*/
-#include "HAL/hal_flash.h"    /* HAL_FlashDriver_t（平台 HAL，含 flash 幾何常數）*/
+#include "ota_flash_port.h"   /* IFmcDriver_t + flash 幾何常數（ota 自帶，無平台相依）*/
 
 /*
  * 共用 OTA Flash 服務層（Single Source of Truth）
@@ -20,8 +20,8 @@
  * 平台可 -D 覆寫。
  */
 
-/* ── 1. 硬體驅動介面 (Hardware Driver Interface) ── */
-typedef HAL_FlashDriver_t IFmcDriver_t;  /* portable alias */
+/* ── 1. 硬體驅動介面 (Hardware Driver Interface) ──
+ * IFmcDriver_t 定義已移入 ota_flash_port.h（ota 自帶，切斷對平台 HAL 的相依）。*/
 
 /* ── 2. 服務層初始化 (Service Initialization) ── */
 int32_t FlashService_Init(const IFmcDriver_t *driver);

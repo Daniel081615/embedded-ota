@@ -5,9 +5,9 @@
 #include <string.h>
 
 /* ── Flash 幾何 ──
- * page / bank size 取自平台 HAL（單一真相，避免重複定義漂移）。 */
-#define PAGE_SIZE  HAL_FLASH_PAGE_SIZE   /* NUC1261: 2048 */
-#define BANK_SIZE  HAL_FLASH_BANK_SIZE   /* 56 KB（0xE000）：對齊 BSP_BANK_SIZE。
+ * page / bank size 取自 ota_flash_port.h（ota 自帶，可 -D 覆寫；單一真相）。 */
+#define PAGE_SIZE  OTA_FLASH_PAGE_SIZE   /* NUC1261: 2048 */
+#define BANK_SIZE  OTA_FLASH_BANK_SIZE   /* 56 KB（0xE000）：對齊 BSP_BANK_SIZE。
                                           * 舊值 60 KB 會讓 EraseBank 多抹 2 頁 →
                                           * Bank0 抹除時越界蓋到 Bank1。 */
 
