@@ -19,6 +19,34 @@
 > 三層鏈,Nuvoton NUC1261 / Cortex-M0,以 Keil armclang 建置並用 arm-gcc 交叉驗證)。
 > 本 repo 只含可攜核心——不含任何應用 / 業務程式碼。
 
+## 運作方式
+
+一串節點——每個都跑**同一份**核心,只靠注入的角色區分——把韌體映像逐台往下游轉發,
+直到葉節點把它交給自己的 Bootloader:
+
+```mermaid
+flowchart LR
+    HOST["主機 / Kiosk"] -->|"推送映像"| GW["Gateway<br/>(角色: CENTER)"]
+    GW -->|"轉發"| CON["Concentrator<br/>(角色: METER)"]
+    CON -->|"轉發"| RN["RoomNode<br/>(葉節點)"]
+    RN -->|"觸發時"| BL["Bootloader<br/>下次開機 A/B 切換"]
+```
+
+每個節點內部的接收路徑是 **store-and-trigger**:先存 + 驗,再由獨立的觸發決定「轉發或開機」。
+scheduler 對每種角色都相同,只有注入的 `TriggerProxy` 不同。
+
+```mermaid
+flowchart TD
+    A["UPDATE_CHILD_REQ"] --> B["擦除未啟用 bank"]
+    B --> C["STORE 逐包<br/>寫入 + 驗 CRC32"]
+    C --> D{"CRC 正確?"}
+    D -->|否| E["ERROR_RSP → 上游"]
+    D -->|是| F["TRIGGER_CHILD_REQ"]
+    F --> G{"角色?"}
+    G -->|"葉節點"| H["進 Bootloader"]
+    G -->|"鏈式節點"| I["轉發映像給子節點"]
+```
+
 ## 為什麼可攜
 
 所有平台相依都以 vtable 注入。核心永不 include MCU header、永不碰暫存器、永不阻塞、

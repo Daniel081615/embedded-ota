@@ -23,6 +23,36 @@ two sides agree only on the shared `fw_info.h` flash layout.
 > built with Keil armclang and cross-checked under arm-gcc). This repo is the
 > portable core only — none of the application/business code.
 
+## How it works
+
+A chain of nodes — each running this **same** core, distinguished only by an
+injected role — relays a firmware image downstream until a leaf hands it to its
+bootloader:
+
+```mermaid
+flowchart LR
+    HOST["Host / Kiosk"] -->|"push image"| GW["Gateway<br/>(role: CENTER)"]
+    GW -->|"relay"| CON["Concentrator<br/>(role: METER)"]
+    CON -->|"relay"| RN["RoomNode<br/>(leaf)"]
+    RN -->|"on trigger"| BL["Bootloader<br/>A/B swap on next boot"]
+```
+
+Inside every node the receive path is **store-and-trigger**: store + verify
+first, then a separate trigger decides forward-or-boot. The scheduler is
+identical for every role; only the injected `TriggerProxy` differs.
+
+```mermaid
+flowchart TD
+    A["UPDATE_CHILD_REQ"] --> B["erase inactive bank"]
+    B --> C["STORE chunks<br/>write + verify CRC32"]
+    C --> D{"CRC ok?"}
+    D -->|no| E["ERROR_RSP → upstream"]
+    D -->|yes| F["TRIGGER_CHILD_REQ"]
+    F --> G{"role?"}
+    G -->|"leaf"| H["enter bootloader"]
+    G -->|"chain node"| I["forward image to children"]
+```
+
 ## Why it's portable
 
 Everything platform-specific is injected as a vtable. The core never includes an
